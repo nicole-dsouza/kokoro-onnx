@@ -1,3 +1,9 @@
+# TTS Files
+onnx/
+onnx-patched/
+*.wav
+voices.bin
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
