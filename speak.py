@@ -11,15 +11,41 @@ os.environ["ONNX_PROVIDER"] = "CPUExecutionProvider";
 # os.add_dll_directory(OPENVINO_LIBS);
 # os.environ["PATH"] = OPENVINO_LIBS + os.pathsep + os.environ["PATH"];
 
+# can't use DirectML as Microsoft's DirectML driver has a tensor shape handling bug inside its ConvTranspose operation node. when Kokoro converts text embeddings into soundwaves, DirectML lib passes a data structure that causes Intel driver to throw an explicit 80070057 'The parameter is incorrect'
+
 # verify provider
+# _original_InferenceSession = ort.InferenceSession
+
+# def _debug_InferenceSession(*args, **kwargs):
+#     session = _original_InferenceSession(*args, **kwargs)
+#     print("ACTUAL PROVIDERS:", session.get_providers())
+#     return session
+
+# ort.InferenceSession = _debug_InferenceSession
+
 _original_InferenceSession = ort.InferenceSession
 
-def _debug_InferenceSession(*args, **kwargs):
-    session = _original_InferenceSession(*args, **kwargs)
-    print("ACTUAL PROVIDERS:", session.get_providers())
-    return session
+def _patched_InferenceSession(*args, **kwargs):
+    so = kwargs.pop("sess_options", None)
 
-ort.InferenceSession = _debug_InferenceSession
+    if so is None:
+        so = ort.SessionOptions()
+
+        # how many CPU threads can work on it simultaneously
+        # intra=16 median is 12.16s vs. default 12.93s
+        so.intra_op_num_threads = 16;
+
+        # multiple ops can run concurrently. how many ops can I execute at once
+        # 0.17s average improvement tho median is essentially identical
+        # so.inter_op_num_threads = 10;
+
+    return _original_InferenceSession(
+        *args,
+        sess_options=so,
+        **kwargs
+    )
+
+ort.InferenceSession = _patched_InferenceSession
 
 # original + cpu: 11 to 13
 # patch v1 + cpu: 11 to 13
