@@ -64,7 +64,7 @@ from kokoro_onnx import Kokoro;
 
 # kokoro model and voices file
 MODEL_FILE  = "onnx/model.onnx";
-VOICES_FILE = "voices.bin";
+VOICES_FILE = "model_files/voices.bin";
 
 # MODEL_FILE  = "onnx-patched/model_resize4d.onnx";
 
