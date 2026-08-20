@@ -1,8 +1,11 @@
 import os;
 
 # set up statements (i.e. provider) that should come before kokoro import statement
-os.environ["ONNX_PROVIDER"]   = "CPUExecutionProvider";
-os.environ["OMP_NUM_THREADS"] = "14"
+os.environ["ONNX_PROVIDER"]   = "OpenVINOExecutionProvider";
+# os.environ["ONNX_PROVIDER"] = "CPUExecutionProvider";
+
+# original + cpu: 11 to 13
+# original + ovi: 10 to 12
 
 import numpy as np;
 import onnxruntime as ort;
@@ -10,6 +13,7 @@ import soundfile as sf;
 import sys;
 import time;
 
+from debug_scripts.batch_test import benchmark_kokoro;
 from huggingface_hub import hf_hub_download;
 from kokoro_onnx import Kokoro;
 
@@ -19,7 +23,7 @@ VOICES_FILE = "voices.bin";
 
 print("📝 Step 1 - Validating Kokoro model and voice files exist ...");
 
-if not os.path.exists(MODEL_FILE):
+if MODEL_FILE == "onnx/model.onnx" and not os.path.exists(MODEL_FILE):
     print("⏳ Downloading genuine Kokoro ONNX model weights (approx. 330MB) ...")
     MODEL_FILE = hf_hub_download(
         repo_id="onnx-community/Kokoro-82M-v1.0-ONNX", 
@@ -52,7 +56,8 @@ print("🚀 Step 3 - Synthesizing audio on Intel Arc GPU ...");
 start_time = time.time();
 
 # generate raw audio and sample rate
-samples, sample_rate = onnx_engine.create(text, voice, speed=1.0, lang="en-us");
+# samples, sample_rate = onnx_engine.create(text, voice, speed=1.0, lang="en-us");
+samples, sample_rate, results = benchmark_kokoro(onnx_engine, text, voice)
 
 end_time = time.time();
 print(f"✅ Success! Generated speech in {end_time - start_time:.2f} seconds.");
