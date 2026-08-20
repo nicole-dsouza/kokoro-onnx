@@ -1,14 +1,33 @@
 import os;
+import onnxruntime as ort;
 
 # set up statements (i.e. provider) that should come before kokoro import statement
-os.environ["ONNX_PROVIDER"]   = "OpenVINOExecutionProvider";
-# os.environ["ONNX_PROVIDER"] = "CPUExecutionProvider";
+os.environ["ONNX_PROVIDER"] = "CPUExecutionProvider";
+
+# os.environ["ONNX_PROVIDER"] = "OpenVINOExecutionProvider";
+
+# OPENVINO_LIBS = r"C:\Users\nicol\Development\kokoro-onnx\.venv\Lib\site-packages\openvino\libs";
+
+# os.add_dll_directory(OPENVINO_LIBS);
+# os.environ["PATH"] = OPENVINO_LIBS + os.pathsep + os.environ["PATH"];
+
+# verify provider
+_original_InferenceSession = ort.InferenceSession
+
+def _debug_InferenceSession(*args, **kwargs):
+    session = _original_InferenceSession(*args, **kwargs)
+    print("ACTUAL PROVIDERS:", session.get_providers())
+    return session
+
+ort.InferenceSession = _debug_InferenceSession
 
 # original + cpu: 11 to 13
-# original + ovi: 10 to 12
+# patch v1 + cpu: 11 to 13
+
+# original + ovi: error
+# patch v1 + ovi: 09 to 29
 
 import numpy as np;
-import onnxruntime as ort;
 import soundfile as sf;
 import sys;
 import time;
@@ -20,6 +39,8 @@ from kokoro_onnx import Kokoro;
 # kokoro model and voices file
 MODEL_FILE  = "onnx/model.onnx";
 VOICES_FILE = "voices.bin";
+
+# MODEL_FILE  = "onnx-patched/model_resize4d.onnx";
 
 print("📝 Step 1 - Validating Kokoro model and voice files exist ...");
 
@@ -57,7 +78,7 @@ start_time = time.time();
 
 # generate raw audio and sample rate
 # samples, sample_rate = onnx_engine.create(text, voice, speed=1.0, lang="en-us");
-samples, sample_rate, results = benchmark_kokoro(onnx_engine, text, voice)
+samples, sample_rate, results = benchmark_kokoro(onnx_engine, text, voice);
 
 end_time = time.time();
 print(f"✅ Success! Generated speech in {end_time - start_time:.2f} seconds.");
